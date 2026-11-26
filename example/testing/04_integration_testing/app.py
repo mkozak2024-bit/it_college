@@ -1,3 +1,4 @@
+
 import json
 import sqlite3
 from pathlib import Path
@@ -18,6 +19,7 @@ def export_tasks(db_path: Path, export_path: Path) -> None:
         rows = connection.execute(
             "SELECT id, title FROM tasks ORDER BY id"
         ).fetchall()
+
     export_path.write_text(
         json.dumps([{"id": task_id, "title": title} for task_id, title in rows]),
         encoding="utf-8",
@@ -34,19 +36,41 @@ def create_app(db_path: Path, export_path: Path) -> Flask:
             rows = connection.execute(
                 "SELECT id, title FROM tasks ORDER BY id"
             ).fetchall()
-        return jsonify([{"id": task_id, "title": title} for task_id, title in rows])
+
+        return jsonify(
+            [{"id": task_id, "title": title} for task_id, title in rows]
+        )
 
     @app.post("/tasks")
     def create_task():
         data = request.get_json(silent=True) or {}
         title = data.get("title", "").strip()
+
         if not title:
             return jsonify({"error": "Поле title є обов'язковим"}), 400
 
         with sqlite3.connect(db_path) as connection:
-            cursor = connection.execute("INSERT INTO tasks (title) VALUES (?)", (title,))
+            cursor = connection.execute(
+                "INSERT INTO tasks (title) VALUES (?)", (title,)
+            )
             task_id = cursor.lastrowid
+
         export_tasks(db_path, export_path)
+
         return jsonify({"id": task_id, "title": title}), 201
+
+    @app.delete("/tasks/<int:task_id>")
+    def delete_task(task_id):
+        with sqlite3.connect(db_path) as connection:
+            cursor = connection.execute(
+                "DELETE FROM tasks WHERE id = ?", (task_id,)
+            )
+
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Завдання не знайдено"}), 404
+
+        export_tasks(db_path, export_path)
+
+        return jsonify({"message": "Завдання видалено"}), 200
 
     return app
