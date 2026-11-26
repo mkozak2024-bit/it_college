@@ -1,7 +1,6 @@
 
 name: Coverage workflow
 
-# Manual запуск через GitHub Actions
 on:
   workflow_dispatch:
     inputs:
@@ -20,29 +19,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Завантаження коду репозиторію
+      # Завантаження коду
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       # Налаштування Python
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: "3.14"
 
-      # Встановлення необхідних пакетів
+      # Встановлення бібліотек
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest coverage
+          python -m pip install pytest coverage codecov-cli
 
-      # Запуск тестів та збір покриття
+      # Запуск тестів із вимірюванням покриття
       - name: Run tests with coverage
         working-directory: example/coverage_io
         run: |
           python -m coverage run --source=app -m pytest test.py -v
 
-      # Генерація звіту XML
+      # Створення XML-звіту
       - name: Generate coverage report
         working-directory: example/coverage_io
         run: |
@@ -51,9 +50,7 @@ jobs:
 
       # Завантаження звіту в Codecov
       - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v7.1.1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: example/coverage_io/coverage.xml
-          fail_ci_if_error: true
-          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: |
+          codecovcli --auto-load-params-from GithubActions --verbose upload-process --disable-search --fail-on-error --file example/coverage_io/coverage.xml
